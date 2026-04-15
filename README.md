@@ -559,3 +559,23 @@ For questions or issues:
 ---
 
 **Happy Distilling! 🎓✨**
+
+
+Everything You Need to Know about Knowledge Distillation 
+https://huggingface.co/blog/Kseniase/kd
+
+https://www.geeksforgeeks.org/nlp/what-is-llm-distillation/
+What is LLM Distillation
+
+https://www.reddit.com/r/LocalLLaMA/comments/1et9ay6/understanding_llm_distillation_gemma_2_and_nvidia/
+https://www.youtube.com/watch?v=riUYGZ-_fJY
+
+https://www.youtube.com/watch?v=O1AR4iL30mg
+
+https://www.youtube.com/watch?v=qZ10DO3F8uo
+https://www.youtube.com/watch?v=gSzv6s9X5Ak
+https://www.youtube.com/watch?v=PYU1uX5l29c
+https://www.youtube.com/watch?v=FiG72a3hGtQ
+https://www.youtube.com/watch?v=jrJKRYAdh7I
+https://www.youtube.com/watch?v=FIOigevZdDU
+https://www.youtube.com/watch?v=tf60owmwR-c
