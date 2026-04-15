@@ -1,0 +1,170 @@
+# Docker Compose for LLM Knowledge Distillation Project
+# =====================================================
+
+version: '3.8'
+
+services:
+  # Training service
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-train
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: python scripts/train.py --config configs/default.yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Optimization service - Round 1
+  optimize-round1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-opt1
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: python scripts/optimize_round1.py --config configs/default.yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Optimization service - Round 2
+  optimize-round2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-opt2
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: python scripts/optimize_round2.py --config configs/default.yaml --round1-results artifacts/optuna/round1_best_params.json
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Evaluation service
+  evaluate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-eval
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: python scripts/evaluate.py --model-path artifacts/best_model/final --generate
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Streamlit app service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-app
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=artifacts/best_model/final
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: streamlit run app/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Jupyter notebook service
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: llm-distillation:latest
+    container_name: llm-distillation-jupyter
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/app
+      - ./artifacts:/app/artifacts
+      - huggingface_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  huggingface_cache:

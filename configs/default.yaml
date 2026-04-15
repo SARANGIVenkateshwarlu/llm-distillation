@@ -1,0 +1,175 @@
+# Default Configuration for LLM Knowledge Distillation Project
+# ============================================================
+
+project:
+  name: "llm-knowledge-distillation"
+  version: "1.0.0"
+  description: "Teacher-Student fine-tuning with Knowledge Distillation"
+  seed: 42
+
+# Hardware Configuration
+hardware:
+  device: "auto"  # auto, cuda, cpu
+  mixed_precision: "bf16"  # bf16, fp16, fp32
+  gradient_checkpointing: true
+  compile_model: false
+
+# Model Configuration
+models:
+  teacher:
+    name: "Qwen/Qwen2.5-7B-Instruct"
+    quantization: "4bit"  # 4bit, 8bit, none
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: "bfloat16"
+    bnb_4bit_use_double_quant: true
+    bnb_4bit_quant_type: "nf4"
+    device_map: "auto"
+    trust_remote_code: true
+    
+  student:
+    name: "Qwen/Qwen2.5-1.5B-Instruct"
+    torch_dtype: "bfloat16"
+    device_map: "auto"
+    trust_remote_code: true
+    use_cache: false  # Disable for training
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules: null  # Auto-detect if null
+  fan_in_fan_out: false
+
+# Dataset Configuration
+dataset:
+  name: "databricks/databricks-dolly-15k"
+  task_type: "instruction_following"
+  text_column: "instruction"
+  context_column: "context"
+  response_column: "response"
+  category_column: "category"
+  train_split: "train"
+  validation_split: 0.1
+  test_split: 0.05
+  max_samples: null  # null for full dataset
+
+# Tokenization
+tokenization:
+  max_length: 512
+  padding: "max_length"
+  truncation: true
+  add_special_tokens: true
+
+# Training Configuration
+training:
+  output_dir: "./artifacts/checkpoints"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  logging_steps: 10
+  eval_strategy: "steps"
+  eval_steps: 100
+  save_strategy: "steps"
+  save_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+  report_to: "none"
+
+# Knowledge Distillation Configuration
+distillation:
+  temperature: 2.0
+  alpha: 0.3  # CE loss weight
+  beta: 0.7   # KD loss weight
+  use_kd: true
+
+# Optuna Configuration
+optuna:
+  round1:
+    n_trials: 20
+    timeout: 3600  # 1 hour
+    study_name: "kd_round1"
+    direction: "minimize"
+    
+  round2:
+    n_trials: 75
+    timeout: 28800  # 8 hours
+    study_name: "kd_round2"
+    direction: "minimize"
+    
+  search_space:
+    learning_rate: [1.0e-5, 5.0e-4]
+    weight_decay: [0.0, 0.1]
+    lora_r: [8, 16, 32, 64]
+    lora_alpha: [16, 32, 64, 128]
+    lora_dropout: [0.0, 0.1]
+    temperature: [1.0, 5.0]
+    alpha: [0.1, 0.5]
+    beta: [0.5, 0.9]
+    per_device_train_batch_size: [1, 2, 4]
+    gradient_accumulation_steps: [4, 8, 16]
+    num_train_epochs: [1, 2, 3]
+    warmup_ratio: [0.0, 0.1]
+    max_length: [256, 512, 1024]
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - "accuracy"
+    - "f1"
+    - "precision"
+    - "recall"
+    - "perplexity"
+  generate_during_eval: true
+  max_new_tokens: 128
+  do_sample: false
+  temperature: 0.7
+  top_p: 0.9
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  log_dir: "./artifacts/logs"
+  tensorboard_dir: "./artifacts/logs/tensorboard"
+  wandb:
+    enabled: false
+    project: "llm-distillation"
+    entity: null
+
+# Artifacts Configuration
+artifacts:
+  checkpoint_dir: "./artifacts/checkpoints"
+  best_model_dir: "./artifacts/best_model"
+  plots_dir: "./artifacts/plots"
+  optuna_dir: "./artifacts/optuna"
+  reports_dir: "./artifacts/reports"
+
+# Inference Configuration
+inference:
+  batch_size: 8
+  max_new_tokens: 256
+  do_sample: true
+  temperature: 0.7
+  top_p: 0.9
+  repetition_penalty: 1.1
+  device: "auto"
+
+# Streamlit App Configuration
+app:
+  title: "LLM Knowledge Distillation Demo"
+  description: "Interactive demo for distilled student model"
+  max_input_length: 1024
+  default_max_new_tokens: 128
+  default_temperature: 0.7
+  default_top_p: 0.9

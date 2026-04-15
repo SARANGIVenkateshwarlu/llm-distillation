@@ -1,0 +1,117 @@
+# Teacher-Student Model Pair Configurations
+# ==========================================
+
+# Recommended Configuration for 46GB GPU
+recommended:
+  teacher:
+    name: "Qwen/Qwen2.5-7B-Instruct"
+    description: "Strong 7B parameter instruction-tuned model with excellent reasoning capabilities"
+    parameters: "7B"
+    context_length: 32768
+    quantization: "4bit"
+    estimated_memory_gb: 8
+    
+  student:
+    name: "Qwen/Qwen2.5-1.5B-Instruct"
+    description: "Efficient 1.5B parameter model, ideal for distillation and edge deployment"
+    parameters: "1.5B"
+    context_length: 32768
+    quantization: "none"
+    estimated_memory_gb: 4
+    
+  rationale: |
+    This pair offers an excellent balance between teacher capability and student efficiency.
+    The Qwen2.5 family shares architectural similarities, making distillation more effective.
+    Total estimated GPU memory: ~12GB for models + ~20GB for training = ~32GB (fits in 46GB).
+
+# Alternative Configurations
+alternatives:
+  # Option 1: DeepSeek Family (Strong Reasoning)
+  deepseek:
+    teacher:
+      name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+      description: "DeepSeek-R1 distilled into Qwen-7B with strong reasoning patterns"
+      parameters: "7B"
+      quantization: "4bit"
+      estimated_memory_gb: 8
+      
+    student:
+      name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+      description: "DeepSeek-R1 distilled into Qwen-1.5B"
+      parameters: "1.5B"
+      quantization: "none"
+      estimated_memory_gb: 4
+      
+    rationale: "Best for reasoning tasks. Already distilled but can be further fine-tuned."
+
+  # Option 2: Mistral Family (Good Performance)
+  mistral:
+    teacher:
+      name: "mistralai/Mistral-7B-Instruct-v0.3"
+      description: "Popular 7B instruction model with strong performance"
+      parameters: "7B"
+      quantization: "4bit"
+      estimated_memory_gb: 8
+      
+    student:
+      name: "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+      description: "Modern 1.7B parameter model optimized for instruction following"
+      parameters: "1.7B"
+      quantization: "none"
+      estimated_memory_gb: 4
+      
+    rationale: "Mistral architecture is well-tested. SmolLM2 is optimized for efficiency."
+
+  # Option 3: Gemma Family (Google)
+  gemma:
+    teacher:
+      name: "google/gemma-2-9b-it"
+      description: "Google's 9B instruction-tuned model"
+      parameters: "9B"
+      quantization: "4bit"
+      estimated_memory_gb: 10
+      
+    student:
+      name: "google/gemma-2-2b-it"
+      description: "Google's 2B instruction-tuned model"
+      parameters: "2B"
+      quantization: "none"
+      estimated_memory_gb: 5
+      
+    rationale: "Gemma 2 offers strong performance. Good for Google ecosystem integration."
+
+# Fallback for Lower Memory (24GB GPU)
+low_memory:
+  teacher:
+    name: "Qwen/Qwen2.5-3B-Instruct"
+    description: "Smaller 3B teacher for memory-constrained environments"
+    parameters: "3B"
+    quantization: "8bit"
+    estimated_memory_gb: 4
+    
+  student:
+    name: "Qwen/Qwen2.5-0.5B-Instruct"
+    description: "Tiny 0.5B student for minimal resource usage"
+    parameters: "0.5B"
+    quantization: "none"
+    estimated_memory_gb: 2
+    
+  rationale: "Fits comfortably in 24GB GPU. Sacrifices some capability for accessibility."
+
+# CPU-Only Fallback
+cpu:
+  teacher:
+    name: "gpt2"
+    description: "Small GPT-2 for CPU demonstration"
+    parameters: "124M"
+    quantization: "none"
+    estimated_memory_gb: 1
+    
+  student:
+    name: "distilgpt2"
+    description: "Distilled GPT-2 for CPU demonstration"
+    parameters: "82M"
+    quantization: "none"
+    estimated_memory_gb: 1
+    
+  rationale: "Minimal setup for CPU-only environments and quick testing."
