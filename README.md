@@ -559,8 +559,8 @@ For questions or issues:
 ---
 
 **Happy Distilling! 🎓✨**
-
-
+DeepSeek-R1
+https://arxiv.org/pdf/2501.12948
 Everything You Need to Know about Knowledge Distillation 
 https://huggingface.co/blog/Kseniase/kd
 
