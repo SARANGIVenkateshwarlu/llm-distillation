@@ -205,6 +205,22 @@ class AppConfig:
 
 
 @dataclass
+class HubConfig:
+    """HuggingFace Hub upload configuration."""
+    enabled: bool = False
+    repo_id: Optional[str] = None
+    private: bool = False
+    token: Optional[str] = None
+    merge_lora: bool = True
+    commit_message: str = "Upload distilled student model"
+    tags: List[str] = field(default_factory=lambda: ["distillation", "lora"])
+    license: str = "mit"
+    base_model: Optional[str] = None
+    teacher_model: Optional[str] = None
+    dataset: Optional[str] = None
+
+
+@dataclass
 class Config:
     """Main configuration class aggregating all sub-configs."""
     project: Dict[str, Any] = field(default_factory=dict)
@@ -221,6 +237,7 @@ class Config:
     artifacts: ArtifactsConfig = field(default_factory=ArtifactsConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     app: AppConfig = field(default_factory=AppConfig)
+    hub: HubConfig = field(default_factory=HubConfig)
 
     @classmethod
     def from_yaml(cls, yaml_path: Union[str, Path]) -> "Config":
@@ -298,6 +315,9 @@ class Config:
         if "app" in data:
             config.app = AppConfig(**data["app"])
         
+        if "hub" in data:
+            config.hub = HubConfig(**data["hub"])
+        
         return config
 
     def to_dict(self) -> Dict[str, Any]:
@@ -320,7 +340,8 @@ class Config:
             "logging": self.logging.__dict__,
             "artifacts": self.artifacts.__dict__,
             "inference": self.inference.__dict__,
-            "app": self.app.__dict__
+            "app": self.app.__dict__,
+            "hub": self.hub.__dict__
         }
 
     def save_yaml(self, yaml_path: Union[str, Path]) -> None:

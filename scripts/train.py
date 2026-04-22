@@ -234,6 +234,33 @@ def main():
         plot_training_curves(trainer.state.log_history, plot_path)
     except Exception as e:
         print(f"Could not plot training curves: {e}")
+    
+    # Push to HuggingFace Hub if enabled
+    if config.hub.enabled and config.hub.repo_id:
+        print("\n" + "=" * 60)
+        print("Pushing to HuggingFace Hub")
+        print("=" * 60)
+        try:
+            from src.publishing.hub_uploader import push_model_to_hub
+            
+            push_model_to_hub(
+                model_path=final_model_dir,
+                repo_id=config.hub.repo_id,
+                config=config,
+                token=config.hub.token,
+                private=config.hub.private,
+                merge_lora=config.hub.merge_lora,
+                commit_message=config.hub.commit_message,
+                tags=config.hub.tags,
+                license=config.hub.license,
+                base_model=config.hub.base_model,
+                teacher_model=config.hub.teacher_model,
+                dataset=config.hub.dataset,
+            )
+        except Exception as e:
+            print(f"Could not push to HuggingFace Hub: {e}")
+            print("You can manually push later using:")
+            print(f"  python scripts/push_to_hub.py --model-path {final_model_dir} --repo-id <your-repo>")
 
 
 if __name__ == "__main__":

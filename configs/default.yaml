@@ -173,3 +173,21 @@ app:
   default_max_new_tokens: 128
   default_temperature: 0.7
   default_top_p: 0.9
+
+# HuggingFace Hub Upload Configuration
+# ===================================
+# Set enabled: true to automatically push the best model after training
+hub:
+  enabled: false
+  repo_id: null          # e.g., "username/my-distilled-model"
+  private: false
+  token: null            # Uses HF_TOKEN env var if null
+  merge_lora: true       # Merge LoRA weights before upload
+  commit_message: "Upload distilled student model"
+  tags:
+    - "distillation"
+    - "lora"
+  license: "mit"
+  base_model: null       # Auto-detected from config if null
+  teacher_model: null    # Auto-detected from config if null
+  dataset: null          # Auto-detected from config if null
