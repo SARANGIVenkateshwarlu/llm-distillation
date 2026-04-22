@@ -264,6 +264,11 @@ def main():
             # Train
             trainer.train()
             
+            # Save training history for this trial
+            history_path = os.path.join(trial_output_dir, "training_history.json")
+            with open(history_path, "w") as f:
+                json.dump(trainer.state.log_history, f)
+            
             # Evaluate
             metrics = trainer.evaluate()
             eval_loss = metrics.get("eval_loss", float("inf"))
@@ -307,6 +312,125 @@ def main():
         save_study(study, os.path.join(config.artifacts.optuna_dir, "round2"))
     except Exception as e:
         print(f"Could not save plots: {e}")
+    
+    # ============================================================
+    # POST-OPTIMIZATION VISUALIZATION BLOCK
+    # ============================================================
+    print("\n" + "=" * 60)
+    print("Generating Post-Optimization Plots")
+    print("=" * 60)
+    
+    plots_dir = os.path.join(config.artifacts.plots_dir, "round2")
+    os.makedirs(plots_dir, exist_ok=True)
+    
+    # --- Plot 1 & 2: Load best trial history ---
+    best_trial_num = study.best_trial.number
+    best_trial_dir = os.path.join(config.artifacts.optuna_dir, f"round2_trial_{best_trial_num}")
+    history_path = os.path.join(best_trial_dir, "training_history.json")
+    
+    if os.path.exists(history_path):
+        with open(history_path, "r") as f:
+            best_history = json.load(f)
+        
+        from src.monitoring.plots import plot_loss_vs_accuracy, plot_kl_divergence
+        
+        plot_loss_vs_accuracy(
+            best_history,
+            output_path=os.path.join(plots_dir, "plot1_training_loss_vs_accuracy.png"),
+        )
+        plot_kl_divergence(
+            best_history,
+            output_path=os.path.join(plots_dir, "plot2_kl_divergence.png"),
+        )
+    else:
+        print(f"Warning: No training history found at {history_path}")
+    
+    # --- Plot 3 & 4: Attention map analysis ---
+    print("\nExtracting attention maps from best model...")
+    
+    # Reconstruct best config
+    best_trial_params = study.best_params
+    best_config = Config.from_dict(config.to_dict())
+    best_config.training.learning_rate = best_trial_params["learning_rate"]
+    best_config.training.weight_decay = best_trial_params.get("weight_decay", best_params.get("weight_decay", 0.01))
+    best_config.training.num_train_epochs = min(best_trial_params.get("num_train_epochs", best_params.get("num_train_epochs", 2)), args.max_epochs_per_trial)
+    best_config.training.warmup_ratio = best_trial_params.get("warmup_ratio", best_params.get("warmup_ratio", 0.03))
+    best_config.training.per_device_train_batch_size = best_trial_params.get("per_device_train_batch_size", best_params.get("per_device_train_batch_size", 1))
+    best_config.training.gradient_accumulation_steps = best_trial_params.get("gradient_accumulation_steps", best_params.get("gradient_accumulation_steps", 8))
+    best_config.lora.r = best_trial_params.get("lora_r", best_params.get("lora_r", 16))
+    best_config.lora.lora_alpha = best_trial_params.get("lora_alpha", best_params.get("lora_alpha", 32))
+    best_config.lora.lora_dropout = best_trial_params.get("lora_dropout", best_params.get("lora_dropout", 0.05))
+    best_config.distillation.temperature = best_trial_params.get("temperature", best_params.get("temperature", 2.0))
+    best_config.distillation.alpha = best_trial_params.get("alpha", best_params.get("alpha", 0.3))
+    best_config.distillation.beta = best_trial_params.get("beta", best_params.get("beta", 0.7))
+    best_config.tokenization.max_length = best_trial_params.get("max_length", best_params.get("max_length", 512))
+    
+    try:
+        # Load best student model
+        best_student, _ = load_student_model(
+            best_config.models["student"],
+            lora_config=best_config.lora,
+        )
+        best_student.eval()
+        
+        # Recreate data collator
+        data_collator = DataCollatorForCausalLM(
+            tokenizer=student_tokenizer,
+            max_length=best_config.tokenization.max_length,
+        )
+        
+        # Get a small sample batch
+        from torch.utils.data import DataLoader
+        sample_size = min(2, len(tokenized_dataset["validation"]))
+        sample_dataset = tokenized_dataset["validation"].select(range(sample_size))
+        sample_loader = DataLoader(sample_dataset, batch_size=sample_size, collate_fn=data_collator)
+        sample_batch = next(iter(sample_loader))
+        
+        import torch
+        
+        # Extract attention maps
+        with torch.no_grad():
+            student_device = next(best_student.parameters()).device
+            student_outputs = best_student(
+                input_ids=sample_batch["input_ids"].to(student_device),
+                attention_mask=sample_batch["attention_mask"].to(student_device),
+                output_attentions=True,
+            )
+            student_attentions = student_outputs.attentions
+            
+            teacher_outputs = teacher(
+                input_ids=sample_batch["input_ids"].to(teacher.device),
+                attention_mask=sample_batch["attention_mask"].to(teacher.device),
+                output_attentions=True,
+            )
+            teacher_attentions = teacher_outputs.attentions
+        
+        from src.monitoring.plots import plot_attention_similarity, plot_attention_embedding_by_layer
+        
+        plot_attention_similarity(
+            teacher_attentions,
+            student_attentions,
+            output_path=os.path.join(plots_dir, "plot3_attention_similarity_tsne_pca.png"),
+        )
+        plot_attention_embedding_by_layer(
+            teacher_attentions,
+            student_attentions,
+            output_path=os.path.join(plots_dir, "plot4_teacher_vs_student_attention_by_layer.png"),
+        )
+        
+        # Cleanup
+        del best_student
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+        
+    except Exception as e:
+        print(f"Could not generate attention plots: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print(f"\nAll plots saved to: {plots_dir}")
+    print("=" * 60)
     
     print("\nRound 2 optimization complete!")
     print(f"Best validation loss: {study.best_value:.4f}")

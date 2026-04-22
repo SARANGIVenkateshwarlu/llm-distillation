@@ -305,3 +305,291 @@ try:
     import optuna
 except ImportError:
     optuna = None
+
+
+def plot_loss_vs_accuracy(
+    log_history: List[Dict],
+    output_path: Optional[str] = None,
+    figsize: tuple = (12, 5),
+) -> plt.Figure:
+    """
+    Plot training loss and accuracy on twin axes.
+    
+    Args:
+        log_history: List of log dictionaries from Trainer
+        output_path: Optional path to save figure
+        figsize: Figure size
+    
+    Returns:
+        Matplotlib figure
+    """
+    steps = []
+    losses = []
+    accuracies = []
+    
+    for log in log_history:
+        if "loss" in log and "step" in log:
+            steps.append(log["step"])
+            losses.append(log["loss"])
+        if "accuracy" in log:
+            accuracies.append(log["accuracy"])
+    
+    fig, ax1 = plt.subplots(figsize=figsize)
+    
+    color = "tab:blue"
+    ax1.set_xlabel("Step")
+    ax1.set_ylabel("Loss", color=color)
+    if losses:
+        ax1.plot(steps[:len(losses)], losses, color=color, label="Loss", linewidth=2)
+    ax1.tick_params(axis="y", labelcolor=color)
+    ax1.grid(True, alpha=0.3)
+    
+    ax2 = ax1.twinx()
+    color = "tab:orange"
+    ax2.set_ylabel("Accuracy", color=color)
+    if accuracies:
+        acc_steps = steps[:len(accuracies)]
+        ax2.plot(acc_steps, accuracies, color=color, label="Accuracy", linewidth=2)
+    ax2.tick_params(axis="y", labelcolor=color)
+    ax2.set_ylim(0, 1.0)
+    
+    fig.tight_layout()
+    plt.title("Training Loss vs Accuracy")
+    
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"Loss vs accuracy plot saved to {output_path}")
+    
+    return fig
+
+
+def plot_kl_divergence(
+    log_history: List[Dict],
+    output_path: Optional[str] = None,
+    figsize: tuple = (10, 6),
+) -> plt.Figure:
+    """
+    Plot KL divergence during training.
+    
+    Args:
+        log_history: List of log dictionaries from Trainer
+        output_path: Optional path to save figure
+        figsize: Figure size
+    
+    Returns:
+        Matplotlib figure
+    """
+    steps = []
+    kls = []
+    
+    for log in log_history:
+        if "kd_loss" in log and "step" in log:
+            steps.append(log["step"])
+            kls.append(log["kd_loss"])
+    
+    fig, ax = plt.subplots(figsize=figsize)
+    if kls:
+        ax.plot(steps, kls, color="purple", label="KL Divergence", linewidth=2)
+    ax.set_xlabel("Step")
+    ax.set_ylabel("KL Divergence")
+    ax.set_title("KL Divergence During Training")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"KL divergence plot saved to {output_path}")
+    
+    return fig
+
+
+def _flatten_attention_maps(attentions):
+    """
+    Flatten attention tensors to [num_layers, flattened_size].
+    
+    Args:
+        attentions: Tuple of tensors, each [batch, heads, seq_len, seq_len]
+    
+    Returns:
+        np.ndarray of shape [num_layers, flattened_size]
+    """
+    if attentions is None:
+        return None
+    layers = []
+    for attn in attentions:
+        # Mean over batch and heads, then flatten
+        attn_mean = attn.mean(dim=(0, 1))  # [seq_len, seq_len]
+        layers.append(attn_mean.cpu().numpy().flatten())
+    return np.stack(layers)
+
+
+def plot_attention_similarity(
+    teacher_attentions,
+    student_attentions,
+    output_path: Optional[str] = None,
+    figsize: tuple = (16, 6),
+) -> plt.Figure:
+    """
+    Plot T-SNE and PCA of attention maps to visualize similarity.
+    
+    Args:
+        teacher_attentions: Tuple of teacher attention tensors
+        student_attentions: Tuple of student attention tensors
+        output_path: Optional path to save figure
+        figsize: Figure size
+    
+    Returns:
+        Matplotlib figure
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+    
+    teacher_flat = _flatten_attention_maps(teacher_attentions)
+    student_flat = _flatten_attention_maps(student_attentions)
+    
+    if teacher_flat is None or student_flat is None:
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "Attention maps not available", ha="center", va="center")
+        return fig
+    
+    combined = np.vstack([teacher_flat, student_flat])
+    labels = ["Teacher"] * len(teacher_flat) + ["Student"] * len(student_flat)
+    
+    # PCA
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(combined)
+    
+    # T-SNE
+    perplexity = min(30, len(combined) - 1)
+    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
+    tsne_result = tsne.fit_transform(combined)
+    
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    
+    colors = {"Teacher": "#1f77b4", "Student": "#ff7f0e"}
+    
+    for ax, result, title in [
+        (axes[0], pca_result, "PCA"),
+        (axes[1], tsne_result, "T-SNE"),
+    ]:
+        for label in ["Teacher", "Student"]:
+            mask = np.array([l == label for l in labels])
+            ax.scatter(
+                result[mask, 0],
+                result[mask, 1],
+                c=colors[label],
+                label=label,
+                alpha=0.8,
+                s=150,
+                edgecolors="black",
+                linewidth=0.5,
+            )
+        ax.set_title(title, fontsize=14, fontweight="bold")
+        ax.set_xlabel("Component 1")
+        ax.set_ylabel("Component 2")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+    
+    plt.suptitle("Attention Map Similarity", fontsize=16, fontweight="bold", y=1.02)
+    plt.tight_layout()
+    
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"Attention similarity plot saved to {output_path}")
+    
+    return fig
+
+
+def plot_attention_embedding_by_layer(
+    teacher_attentions,
+    student_attentions,
+    output_path: Optional[str] = None,
+    figsize: tuple = (10, 8),
+) -> plt.Figure:
+    """
+    Plot teacher vs student attention embeddings colored by layer index.
+    
+    Args:
+        teacher_attentions: Tuple of teacher attention tensors
+        student_attentions: Tuple of student attention tensors
+        output_path: Optional path to save figure
+        figsize: Figure size
+    
+    Returns:
+        Matplotlib figure
+    """
+    from sklearn.manifold import TSNE
+    
+    teacher_flat = _flatten_attention_maps(teacher_attentions)
+    student_flat = _flatten_attention_maps(student_attentions)
+    
+    if teacher_flat is None or student_flat is None:
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "Attention maps not available", ha="center", va="center")
+        return fig
+    
+    combined = np.vstack([teacher_flat, student_flat])
+    n_teacher = len(teacher_flat)
+    n_student = len(student_flat)
+    
+    perplexity = min(30, len(combined) - 1)
+    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
+    tsne_result = tsne.fit_transform(combined)
+    
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    max_layers = max(n_teacher, n_student)
+    
+    # Plot teacher layers with Blues colormap
+    scatter1 = ax.scatter(
+        tsne_result[:n_teacher, 0],
+        tsne_result[:n_teacher, 1],
+        c=np.arange(n_teacher),
+        cmap="Blues",
+        marker="o",
+        s=250,
+        edgecolors="black",
+        linewidth=1.5,
+        label="Teacher",
+        vmin=0,
+        vmax=max_layers - 1,
+        alpha=0.9,
+    )
+    
+    # Plot student layers with Oranges colormap
+    scatter2 = ax.scatter(
+        tsne_result[n_teacher:, 0],
+        tsne_result[n_teacher:, 1],
+        c=np.arange(n_student),
+        cmap="Oranges",
+        marker="s",
+        s=250,
+        edgecolors="black",
+        linewidth=1.5,
+        label="Student",
+        vmin=0,
+        vmax=max_layers - 1,
+        alpha=0.9,
+    )
+    
+    ax.set_title("Teacher vs Student Attention Embeddings (T-SNE) Colored by Layer", fontsize=14, fontweight="bold")
+    ax.set_xlabel("T-SNE Dimension 1")
+    ax.set_ylabel("T-SNE Dimension 2")
+    ax.legend(fontsize=12)
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if output_path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"Attention embedding by layer plot saved to {output_path}")
+    
+    return fig

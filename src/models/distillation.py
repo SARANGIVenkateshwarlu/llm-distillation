@@ -111,7 +111,44 @@ class KnowledgeDistillationTrainer(Trainer):
                 ignore_index=-100,
             )
         
+        # Compute and store metrics for logging during training
+        if model.training:
+            with torch.no_grad():
+                preds = torch.argmax(student_logits, dim=-1)
+                mask = labels != -100
+                if mask.any():
+                    self._last_accuracy = (preds[mask] == labels[mask]).float().mean().item()
+                else:
+                    self._last_accuracy = 0.0
+                
+                if self.teacher_model is not None:
+                    kl = compute_kl_divergence(
+                        student_logits=student_logits,
+                        teacher_logits=teacher_logits,
+                        temperature=self.temperature,
+                    )
+                    self._last_kl_loss = kl.item()
+                else:
+                    self._last_kl_loss = 0.0
+        
         return (loss, outputs) if return_outputs else loss
+    
+    def training_step(self, model, inputs, num_items_in_batch=None):
+        """
+        Perform a training step with custom metric logging.
+        
+        Logs accuracy and KL divergence alongside the standard loss.
+        """
+        loss = super().training_step(model, inputs, num_items_in_batch)
+        
+        # Log custom metrics that were computed during compute_loss
+        if model.training:
+            if hasattr(self, "_last_accuracy"):
+                self.log("accuracy", self._last_accuracy)
+            if hasattr(self, "_last_kl_loss"):
+                self.log("kd_loss", self._last_kl_loss)
+        
+        return loss
     
     def prediction_step(
         self,
