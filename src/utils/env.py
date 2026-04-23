@@ -271,3 +271,33 @@ def set_cuda_visible_devices(devices: str) -> None:
         devices: Comma-separated string of device indices (e.g., "0,1")
     """
     os.environ["CUDA_VISIBLE_DEVICES"] = devices
+
+
+def set_gpu_memory_fraction(fraction: float = 0.8) -> None:
+    """
+    Limit GPU memory allocation to a fraction of total memory.
+    
+    This sets the per-process memory fraction for ALL available CUDA
+    devices, preventing PyTorch from consuming 100 % of GPU memory
+    and reducing the risk of OOM / disconnections.
+    
+    Args:
+        fraction: Fraction of total GPU memory to allow (0.0 - 1.0).
+                  Default is 0.8 (80 %).
+    
+    Example:
+        >>> set_gpu_memory_fraction(0.8)
+        GPU 0 memory limited to 80.0 % (≈ 20.00 GB / 24.00 GB)
+    """
+    if not torch.cuda.is_available():
+        return
+    
+    for i in range(torch.cuda.device_count()):
+        torch.cuda.set_per_process_memory_fraction(fraction, device=i)
+        props = torch.cuda.get_device_properties(i)
+        allowed_gb = props.total_memory / (1024 ** 3) * fraction
+        total_gb = props.total_memory / (1024 ** 3)
+        print(
+            f"GPU {i} memory limited to {fraction:.0%} "
+            f"(≈ {allowed_gb:.2f} GB / {total_gb:.2f} GB)"
+        )

@@ -27,7 +27,7 @@ from src.models.teacher_loader import load_teacher_model
 from src.optimization.optuna_search import run_optuna_optimization, save_best_params
 from src.optimization.search_space import suggest_parameters
 from src.utils.seed import set_seed
-from src.utils.env import print_hardware_summary
+from src.utils.env import print_hardware_summary, set_gpu_memory_fraction
 
 import optuna
 
@@ -127,6 +127,9 @@ def main():
     
     # Print hardware info
     print_hardware_summary()
+    
+    # Limit GPU memory to 80% to avoid OOM / disconnections
+    set_gpu_memory_fraction(0.8)
     
     # Set seed
     set_seed(args.seed)
@@ -259,6 +262,8 @@ def main():
                 save_steps=1000,
                 bf16=trial_config.hardware.mixed_precision == "bf16",
                 fp16=trial_config.hardware.mixed_precision == "fp16",
+                dataloader_num_workers=trial_config.training.dataloader_num_workers,
+                gradient_checkpointing=trial_config.hardware.gradient_checkpointing,
             )
             
             # Train

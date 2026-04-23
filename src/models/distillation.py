@@ -243,6 +243,8 @@ def create_distillation_trainer(
     save_steps: int = 100,
     bf16: bool = True,
     fp16: bool = False,
+    dataloader_num_workers: int = 0,
+    gradient_checkpointing: bool = False,
     **kwargs
 ) -> KnowledgeDistillationTrainer:
     """
@@ -286,6 +288,8 @@ def create_distillation_trainer(
         greater_is_better=False,
         bf16=bf16,
         fp16=fp16,
+        dataloader_num_workers=dataloader_num_workers,
+        gradient_checkpointing=gradient_checkpointing,
         report_to="none",
         remove_unused_columns=False,
         **kwargs

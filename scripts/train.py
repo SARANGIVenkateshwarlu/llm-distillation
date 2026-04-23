@@ -25,7 +25,7 @@ from src.models.distillation import create_distillation_trainer
 from src.models.student_loader import load_student_model
 from src.models.teacher_loader import load_teacher_model
 from src.utils.seed import set_seed
-from src.utils.env import print_hardware_summary
+from src.utils.env import print_hardware_summary, set_gpu_memory_fraction
 
 
 def parse_args():
@@ -102,6 +102,9 @@ def main():
     
     # Print hardware info
     print_hardware_summary()
+    
+    # Limit GPU memory to 80% to avoid OOM / disconnections
+    set_gpu_memory_fraction(0.8)
     
     # Set seed for reproducibility
     set_seed(args.seed)
@@ -200,6 +203,8 @@ def main():
         save_steps=config.training.save_steps,
         bf16=config.hardware.mixed_precision == "bf16",
         fp16=config.hardware.mixed_precision == "fp16",
+        dataloader_num_workers=config.training.dataloader_num_workers,
+        gradient_checkpointing=config.hardware.gradient_checkpointing,
     )
     
     # Train
