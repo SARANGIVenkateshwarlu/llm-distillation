@@ -8,7 +8,7 @@ import torch
 from transformers import Trainer
 from transformers.trainer_utils import EvalPrediction
 
-from src.models.losses import compute_kd_loss
+from src.models.losses import compute_kd_loss, compute_kl_divergence
 
 
 class KnowledgeDistillationTrainer(Trainer):

@@ -201,7 +201,7 @@ python scripts/train.py \
     --epochs 3
 
 # Using Docker
-make docker-train
+make docker Container, Ollama serve 
 ```
 
 ### Hyperparameter Optimization

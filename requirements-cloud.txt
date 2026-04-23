@@ -1,0 +1,50 @@
+# Cloud GPU Requirements (Lightning.AI, RunPod, Vast.ai, etc.)
+# ============================================================
+# This is a LEAN requirements file for running training on cloud GPUs.
+# It includes only what's needed for the notebooks and training scripts.
+#
+# Install with: pip install -r requirements-cloud.txt
+
+# Core ML/DL
+# ==========
+torch>=2.2.0
+
+# Transformers & Hugging Face
+# ===========================
+transformers>=4.40.0
+datasets>=2.19.0
+peft>=0.11.0
+bitsandbytes>=0.43.0
+huggingface-hub>=0.23.0
+accelerate>=0.30.0
+
+# Training & Optimization
+# =======================
+optuna>=3.6.0
+
+# Evaluation
+# ==========
+scikit-learn>=1.5.0
+evaluate>=0.4.2
+
+# Data Processing
+# ===============
+numpy>=1.26.0
+
+# Visualization
+# =============
+matplotlib>=3.9.0
+
+# Configuration
+# =============
+pyyaml>=6.0.1
+
+# Progress Bars
+# =============
+tqdm>=4.66.0
+
+# Jupyter (for running notebooks on cloud GPU)
+# ============================================
+jupyter>=1.0.0
+ipython>=8.24.0
+notebook>=7.2.0

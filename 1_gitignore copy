@@ -50,13 +50,13 @@ env/
 
 # Model Artifacts and Checkpoints
 # ================================
-#artifacts/checkpoints/*
-#artifacts/best_model/*
-#artifacts/logs/*
-#artifacts/plots/*
-#artifacts/optuna/*
-#artifacts/reports/*
-#!artifacts/.gitkeep
+artifacts/checkpoints/*
+artifacts/best_model/*
+artifacts/logs/*
+artifacts/plots/*
+artifacts/optuna/*
+artifacts/reports/*
+!artifacts/.gitkeep
 
 # Data
 # ====
