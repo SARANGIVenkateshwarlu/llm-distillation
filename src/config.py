@@ -177,6 +177,7 @@ class ArtifactsConfig:
     checkpoint_dir: str = "./artifacts/checkpoints"
     best_model_dir: str = "./artifacts/best_model"
     plots_dir: str = "./artifacts/plots"
+    logs_dir: str = "./artifacts/logs"
     optuna_dir: str = "./artifacts/optuna"
     reports_dir: str = "./artifacts/reports"
 
